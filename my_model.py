@@ -23,27 +23,24 @@ saved_model_dir = os.path.join(config.output_path(), "cheat_baseline.h5")
 def get_model():
     model = Sequential()
 
-    model.add(Conv2D(16, (2, 4), strides=(2,1), padding = "valid", 
+    model.add(Conv2D(16, (3, 3), strides=(1,1), padding = "valid", 
                 kernel_initializer='he_uniform',
                 input_shape = config.shape))
     model.add(LeakyReLU(alpha = 0.1))
 
-    model.add(Conv2D(32, (2, 4), padding = "valid", kernel_initializer='he_uniform'))
+    model.add(Conv2D(32, (3, 3), padding = "valid", kernel_initializer='he_uniform'))
     model.add(LeakyReLU(alpha = 0.1))
 
-    model.add(MaxPooling2D(pool_size=(1,4), strides=(2, 1), padding="same"))
+    model.add(MaxPooling2D(pool_size=(2,2), strides=(2, 2), padding="same"))
 
-    model.add(Conv2D(64, (2, 4), strides=(2, 1), padding = "valid", 
-                        kernel_initializer='he_uniform'))
-    model.add(LeakyReLU(alpha = 0.1))
-
-    model.add(Conv2D(128, (2, 4), strides=(1, 1), padding = "valid", 
+ 
+    model.add(Conv2D(64, (3, 3), strides=(1, 1), padding = "valid", 
                         kernel_initializer='he_uniform'))
     model.add(LeakyReLU(alpha = 0.1))
 
     model.add(Flatten())
     model.add(Dense(config.nb_classes, activation="softmax"))
-    
+
     return model
 
 
@@ -66,8 +63,8 @@ def save_model_checkpoint():
 
 def set_early_stopping():
     return EarlyStopping(monitor='val_loss', 
-                        patience = 15, 
-                        verbose=2, 
+                        patience = 40, 
+                        verbose = 2, 
                         mode='auto')
 
 

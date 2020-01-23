@@ -41,10 +41,11 @@ def handling_json_data_file(data):
         is_partial_body =  hf.is_partial_body(pose_keypoints)
 
         # for complete pose
+        
         if(not is_partial_body):
             pose_features = hf.normalize_keypoints(pose_keypoints)
 
-            """
+        """
             limb_features = hf.get_body_limb(pose_keypoints)
             angle_features = hf.get_joint_angle(pose_keypoints)
             
@@ -58,7 +59,7 @@ def handling_json_data_file(data):
                 motion_features = hf.get_motion_featurs(second_frame_bpks, 
                                                   first_frame_bkps)
                 first_frame_bkps = second_frame_bpks
-            """
+        """
     
     # combining all fetures
     if (not is_partial_body and not is_no_people):
@@ -73,57 +74,6 @@ def handling_json_data_file(data):
 
 
 
-# dataset formatted for rnn input
-def get_format_data(subject_id,
-                    seq_kps,
-                    seq,
-                    start_id):
-
-    seq_data = []
-    seq_label = []
-    
-    # check how many image frame of length 28 we can get
-    nb_images = len(seq_kps)
-
-    # for larger than 15 image sequene creating one timestep
-    if(nb_images < config.casiaB_nb_steps):
-        if ((config.casiaB_nb_steps - nb_images) > (config.casiaB_nb_steps / 2)):
-            nb_image_set = 0
-
-        else:
-            nb_image_set = 1
-            seq_kps = seq_kps * 2
-        
-    else:
-        nb_image_set = int((nb_images - config.casiaB_nb_steps) / 
-                            config.actual_fps) + 1
-
-    # finding label of from subject data file
-    sub_label = int(subject_id[1:]) - start_id
-    print(seq, "has total image:", nb_images, 
-            "  total image_set:", nb_image_set)
-
-    # for some value of image_set
-    if(nb_image_set > 0):
-        for i in range(0, nb_image_set):
-            start_frame_id = i * config.actual_fps
-            end_frame_id = start_frame_id + config.casiaB_nb_steps
-
-            # saving each keypoints
-            for line in range(start_frame_id, end_frame_id):
-                seq_data.append(seq_kps[line])
-                seq_label.append([sub_label])
-
-        seq_data = np.array(seq_data)
-        seq_label = np.array(seq_label)
-
-        seq_data = np.array(np.split(seq_data, nb_image_set))
-        seq_label = np.array(np.split(seq_label, nb_image_set))
-
-    return seq_data, seq_label
-
-
-
 def get_keypoints_for_all_cheat(cheat_type_list):
 
     print("\n\n*********** Generating %s data ***********" % "training")    
@@ -134,7 +84,8 @@ def get_keypoints_for_all_cheat(cheat_type_list):
         print("\n\n\n\n############ cheat type %s ############" % cheat_type)
 
         # variable for each cheat type
-        cheat_label = config.cheat_lable_list.index(cheat_type) - 1
+        cheat_label = config.cheat_lable_list.index(cheat_type)
+        
 
         # getting angle
         cheat_dir = os.path.join(config.pose_3dcd_path(), cheat_type)
@@ -145,14 +96,13 @@ def get_keypoints_for_all_cheat(cheat_type_list):
         print("%s has: %d cheat vidoes" % (cheat_type, num_cheat_vid))
 
 
-        missing_count = 0
+        missing_video = 0
         
         # considering each cheat video
         for cheat_vid in cheat_vid_list:
             cheat_vid_dir = os.path.join(cheat_dir, cheat_vid)
 
             cheat_vid_data = []
-            cheat_vid_label = []
             is_missing_frame = False
             
             # considering each cheat vids
@@ -160,7 +110,6 @@ def get_keypoints_for_all_cheat(cheat_type_list):
 
             # getting all json files
             json_files = sorted(glob.glob("*.json"))
-            cheat_vid_label.append(cheat_label)
 
             for f in (json_files): 
                 with open(f) as data_file:
@@ -177,12 +126,16 @@ def get_keypoints_for_all_cheat(cheat_type_list):
                     else:
                         cheat_vid_data.append(frame_kps)
                         
+
+            # count total misssing videos
+            if (is_missing_frame == True):   missing_video += 1
+
             # appending non-missing videos
             if(is_missing_frame == False):
                 total_dataset.append(np.array(cheat_vid_data))
-                total_dataset_label.append(cheat_vid_label)
+                total_dataset_label.append(cheat_label)
 
-
+        print("total missing: ", missing_video, "for label: ", cheat_label)
     
     # forming final data and label
     for  i, array in enumerate(total_dataset):
@@ -198,8 +151,7 @@ def get_keypoints_for_all_cheat(cheat_type_list):
 
     # on-hot encoding
     total_dataset_label = np.array(total_dataset_label)
-    total_dataset_label = to_categorical(total_dataset_label, 
-                        config.nb_classes)
+    total_dataset_label = to_categorical(total_dataset_label, config.nb_classes)
     
     data = np.expand_dims(data, axis = 3)
 
@@ -210,9 +162,13 @@ def get_keypoints_for_all_cheat(cheat_type_list):
 
 
 
-
-if __name__ == "__main__":
+def get_train_data():
     cheat_type_list = os.listdir(config.pose_3dcd_path())
     cheat_type_list = sorted(cheat_type_list)
 
-    get_keypoints_for_all_cheat(cheat_type_list)
+    return get_keypoints_for_all_cheat(cheat_type_list)
+
+
+
+if __name__ == "__main__":
+    get_train_data()

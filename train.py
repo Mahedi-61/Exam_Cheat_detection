@@ -12,12 +12,12 @@ from . import my_model, make_dataset_3dcd
 
 
 # loading data
-cheat_type_list = os.listdir(config.pose_3dcd_path())
-cheat_type_list = sorted(cheat_type_list)
-X_train, y_train = make_dataset_3dcd.get_keypoints_for_all_cheat(cheat_type_list)
+X_train, y_train = make_dataset_3dcd.get_train_data()
 
 print("train data shape: ", X_train.shape)
 print("train data label: ", y_train.shape)
+
+# for i, ar in enumerate(y_train): print("label: ", i, " value: ", ar)
 
 
 # laoding model
@@ -41,4 +41,5 @@ model.fit(X_train, y_train,
         verbose = 2, 
         shuffle = True, 
         callbacks = [early_stopping, model_cp], 
-        validation_split = 0.2)
+        validation_split = 0.15)
+
