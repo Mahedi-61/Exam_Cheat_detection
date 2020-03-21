@@ -18,44 +18,33 @@ from keras.callbacks import (EarlyStopping,
                              ReduceLROnPlateau)
 
 # project modules
-from ... import root_dir
-from . import config
+from .. import config
 from .my_models import CenterLossLayer
  
-if (config.working_dataset == "casiaA"):
-    rnn_model_path = config.casiaA_rnn_model_path
-    rnn_model_weight = config.casiaA_rnn_model_weight
-
-elif(config.working_dataset == "casiaB"):
-    rnn_model_path = config.casiaB_rnn_model_path
-    rnn_model_weight = config.casiaB_rnn_model_weight
-
 
 # reading model
-def read_rnn_model(angle):
+def read_rnn_model():
     print("\nreading stored rnn model architecture and weight ...")
     
-    json_string = open(rnn_model_path).read()
+    json_string = open(config.saved_rnn_model_path).read()
     model = model_from_json(json_string, 
                     custom_objects={'CenterLossLayer': CenterLossLayer})
 
-    rnn_model_weight_path = os.path.join(config.model_dir,
-                            angle + "_" + rnn_model_weight)
+
     
-    model.load_weights(rnn_model_weight_path)
+    model.load_weights(config.saved_rnn_weight_path)
     
-    print("loaded model directory: ", angle + "_" + rnn_model_weight)
+    print("loaded model directory: ", config.rnn_model_weight)
     return model
 
 
 
 # saving checkpoint
-def save_rnn_model_checkpoint(angle):
+def save_rnn_model_checkpoint():
 
-    rnn_model_weight_path = os.path.join(config.checkpoint_dir,
-                            angle + "_" + rnn_model_weight)
+    rnn_weight_path = config.rnn_weight_path
     
-    return ModelCheckpoint(rnn_model_weight_path,
+    return ModelCheckpoint(rnn_weight_path,
                 monitor = 'val_activation_1_acc',
                 verbose = 2,
                 save_best_only = True,
@@ -66,12 +55,10 @@ def save_rnn_model_checkpoint(angle):
 
 
 # saving model
-def save_rnn_model_weight(model, angle):
+def save_rnn_model_weight(model):
 
-    rnn_model_weight_path = os.path.join(config.checkpoint_dir, 
-                            angle + "_" + rnn_model_weight)
-
-    return model.save_weights(rnn_model_weight_path)
+    rnn_weight_path = config.rnn_weight_path
+    return model.save_weights(rnn_weight_path)
 
 
 

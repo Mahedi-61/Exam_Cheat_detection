@@ -41,7 +41,6 @@ def handling_json_data_file(data):
         is_partial_body =  hf.is_partial_body(pose_keypoints)
 
         # for complete pose
-        
         if(not is_partial_body):
             pose_features = hf.normalize_keypoints(pose_keypoints)
 
@@ -73,14 +72,31 @@ def handling_json_data_file(data):
 
 
 
+def get_format_data(cheat_vid_data, cheat_vid_label):
+    nb_images = len(cheat_vid_data)
+    success = False
+
+    if (nb_images >= config.nb_steps): 
+        success = True
+        d =  np.array(cheat_vid_data[:config.nb_steps])
+        l = cheat_vid_label[:config.nb_steps]
+        return d, l, success
+
+    else:
+        return cheat_vid_data, cheat_vid_label, success
+
+
 
 def get_keypoints_for_all_cheat(cheat_type_list):
 
     print("\n\n*********** Generating %s data ***********" % "training")    
-    total_dataset = []
-    total_dataset_label = []
+    train_dataset = []
+    valid_dataset = []
 
-    for cheat_type in cheat_type_list:
+    train_dataset_label = []
+    valid_dataset_label = []
+
+    for ctype, cheat_type in enumerate (cheat_type_list):
         print("\n\n\n\n############ cheat type %s ############" % cheat_type)
 
         # variable for each cheat type
@@ -88,86 +104,108 @@ def get_keypoints_for_all_cheat(cheat_type_list):
         
 
         # getting angle
-        cheat_dir = os.path.join(config.pose_3dcd_path(), cheat_type)
+        cheat_dir = os.path.join(config.data_3dcd_path(), cheat_type)
         cheat_vid_list = os.listdir(cheat_dir)
         #print(cheat_vid_list)
 
         num_cheat_vid =  len(cheat_vid_list)
         print("%s has: %d cheat vidoes" % (cheat_type, num_cheat_vid))
 
-
         missing_video = 0
+        type_dataset = []
+        type_label = []
         
         # considering each cheat video
         for cheat_vid in cheat_vid_list:
             cheat_vid_dir = os.path.join(cheat_dir, cheat_vid)
 
-            cheat_vid_data = []
-            is_missing_frame = False
-            
             # considering each cheat vids
+            cheat_vid_data = []
+            cheat_vid_label = []
+            is_missing_frame = False
             os.chdir(cheat_vid_dir)
 
             # getting all json files
             json_files = sorted(glob.glob("*.json"))
 
+            missing_count = 0
             for f in (json_files): 
                 with open(f) as data_file:
                     data = json.load(data_file)
                     
+                    #print("new frame")
                     frame_kps, no_people, partial_body = handling_json_data_file(data)
-                    #print("frame no: ", f+1); print(frame_kps)
+                    #print(frame_kps)
         
-                    # counting no, multiple people and partial body detected
+                    # counting no and partial body detected
                     if (no_people == True or partial_body == True):  
+                        
+                        missing_count += 1
                         is_missing_frame = True 
                         
                     # for single people save the frame key points
                     else:
                         cheat_vid_data.append(frame_kps)
-                        
-
+                        cheat_vid_label.append(cheat_label)
+            
+            #print(len(cheat_vid_data))
+            
             # count total misssing videos
-            if (is_missing_frame == True):   missing_video += 1
+            vid_data, vid_label, success = get_format_data(cheat_vid_data, cheat_vid_label)
+            if(success == True):
+                type_dataset.append(np.expand_dims(vid_data, axis=0))
+                type_label.append(vid_label)
+            
+            else:
+                missing_video += 1
 
-            # appending non-missing videos
-            if(is_missing_frame == False):
-                total_dataset.append(np.array(cheat_vid_data))
-                total_dataset_label.append(cheat_label)
+        print("for label: ", cheat_label, "total missing: ", missing_video)
 
-        print("total missing: ", missing_video, "for label: ", cheat_label)
-    
-    # forming final data and label
-    for  i, array in enumerate(total_dataset):
-        #print(array.shape)
-        if (array.shape[0] != 31):
-            print("culprit: ", i)
-            del total_dataset_label[i]
+
+        # validation 15%
+        nb_valid_vid = int((num_cheat_vid - missing_video) * 0.15)
+
+        if(ctype == 0):
+            valid_dataset = np.vstack(type_dataset[:nb_valid_vid])
+            train_dataset = np.vstack(type_dataset[nb_valid_vid:])
+
+            valid_dataset_label = to_categorical(np.array(
+                        type_label[:nb_valid_vid]), config.nb_classes)
+
+            train_dataset_label = to_categorical(np.array(
+                        type_label[nb_valid_vid:]), config.nb_classes)
 
         else:
-            if (i == 0): data = np.expand_dims(array, axis=0)
-            else: data = np.concatenate((data, np.expand_dims(array, axis=0)), axis = 0)
+            valid_dataset = np.concatenate((valid_dataset, 
+                            np.vstack(type_dataset[:nb_valid_vid])), axis = 0) 
+
+            train_dataset = np.concatenate((train_dataset, 
+                            np.vstack(type_dataset[nb_valid_vid:])), axis = 0)
+
+            valid_dataset_label = np.concatenate((valid_dataset_label, 
+                        to_categorical(np.array(type_label[:nb_valid_vid]), 
+                        config.nb_classes)), axis = 0)
+
+            train_dataset_label = np.concatenate((train_dataset_label, 
+                        to_categorical(np.array(type_label[nb_valid_vid:]), 
+                        config.nb_classes)), axis = 0)
 
 
-    # on-hot encoding
-    total_dataset_label = np.array(total_dataset_label)
-    total_dataset_label = to_categorical(total_dataset_label, config.nb_classes)
+    print("train dataset shape: ", train_dataset.shape)
+    print("valid dataset shape", valid_dataset.shape)
+
+    print("train label shape: ", train_dataset_label.shape)
+    print("valid label shape: ", valid_dataset_label.shape)
     
-    data = np.expand_dims(data, axis = 3)
-
-    print("dataset shape: ", data.shape)
-    print("label shape: ", total_dataset_label.shape)
-    
-    return data, total_dataset_label
+    return train_dataset, valid_dataset, train_dataset_label, valid_dataset_label
 
 
 
 def get_train_data():
-    cheat_type_list = os.listdir(config.pose_3dcd_path())
+    cheat_type_list = os.listdir(config.data_3dcd_path())
     cheat_type_list = sorted(cheat_type_list)
 
     return get_keypoints_for_all_cheat(cheat_type_list)
-
 
 
 if __name__ == "__main__":

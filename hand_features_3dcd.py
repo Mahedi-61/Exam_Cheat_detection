@@ -1,5 +1,5 @@
 """
-Author: Md Shamim
+Author: A Cup of Tea
 Description: Preprocess pose keypoints to find more gait features
 Steps to do
         1. find each body joint coordinates
@@ -63,11 +63,12 @@ x_cor_l_shoulder = (5 * 3); y_cor_l_shoulder = (x_cor_l_shoulder + 1)
 #Trick to find partial body
 def is_partial_body(body_kps):
     partial_body = False
-    l_hand_lenght =  abs(body_kps[x_cor_l_elbow] - body_kps[x_cor_l_shoulder] )
-    r_hand_lenght =  abs(body_kps[x_cor_r_elbow] - body_kps[x_cor_r_shoulder] )
+    l_hand_lenght =  abs(body_kps[y_cor_l_elbow] - body_kps[y_cor_l_shoulder] )
+    r_hand_lenght =  abs(body_kps[y_cor_r_elbow] - body_kps[y_cor_r_shoulder] )
+    nose_neck =  abs(body_kps[y_cor_nose] - body_kps[y_cor_neck] )
 
     # for partial body pose
-    if(l_hand_lenght == 0 or r_hand_lenght == 0): partial_body = True
+    if(l_hand_lenght == 0 or r_hand_lenght == 0 or nose_neck == 0): partial_body = True
     return partial_body
 
 
@@ -75,11 +76,11 @@ def is_partial_body(body_kps):
 # normalize body keypoints according to PTSN paper         
 def normalize_keypoints(body_kps):
 
-    body_joint = [0, 1, 2, 3, 4, 5, 6, 7, 15, 16, 17, 18] 
+    body_joint = [0, 1, 2, 3, 4, 5, 6, 7, 15, 16] 
     frame_kps = []
     
     # calculating distance between right_ankle and center of the hip
-    unit_length =  body_kps[y_cor_mid_hip] - body_kps[y_cor_neck]
+    unit_length =  abs(body_kps[y_cor_nose] - body_kps[y_cor_neck] )
     
     # for complete body pose select joints
     for b_j in  body_joint:
